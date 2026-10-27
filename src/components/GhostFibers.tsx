@@ -862,6 +862,7 @@ const GhostFibers = ({
     const resize = () => {
       const s = settingsRef.current;
       const width = Math.max(1, container.clientWidth);
+      const height = Math.max(1, container.clientHeight);
       const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
       const maxDpr = isTouch ? 1.5 : 2;
       const baseDpr = Math.min(s.dpr || window.devicePixelRatio || 1, maxDpr);
