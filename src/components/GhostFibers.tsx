@@ -731,6 +731,7 @@ const GhostFibers = ({
     if (!container || !canvas || !gl) return undefined;
 
     const floatTargets = !!gl.getExtension('EXT_color_buffer_float');
+    const floatLinear = !!gl.getExtension('OES_texture_float_linear');
     const dots = link(gl, DOT_VERTEX, DOT_FRAGMENT, DOT_UNIFORMS);
     const dust = link(gl, DUST_VERTEX, DOT_FRAGMENT, DUST_UNIFORMS);
     const bright = link(gl, FULLSCREEN, BRIGHT_FRAGMENT, PASS_UNIFORMS);
@@ -739,7 +740,7 @@ const GhostFibers = ({
     const composite = link(gl, FULLSCREEN, COMPOSITE_FRAGMENT, COMPOSITE_UNIFORMS);
     if (!dots || !dust || !bright || !down || !up || !composite) return undefined;
 
-    const format = floatTargets ? gl.RGBA16F : gl.RGBA8;
+    const format = floatTargets && floatLinear ? gl.RGBA16F : gl.RGBA8;
     const makeTarget = (): Target => ({ texture: null, framebuffer: gl.createFramebuffer(), width: 0, height: 0 });
     const allocate = (target: Target, width: number, height: number) => {
       if (target.texture && target.width === width && target.height === height) return;
@@ -861,8 +862,9 @@ const GhostFibers = ({
     const resize = () => {
       const s = settingsRef.current;
       const width = Math.max(1, container.clientWidth);
-      const height = Math.max(1, container.clientHeight);
-      const baseDpr = Math.min(s.dpr || window.devicePixelRatio || 1, 2);
+      const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
+      const maxDpr = isTouch ? 1.5 : 2;
+      const baseDpr = Math.min(s.dpr || window.devicePixelRatio || 1, maxDpr);
       const longest = Math.max(width, height) * baseDpr;
       const ratio = longest > MAX_RENDER_DIM ? (baseDpr * MAX_RENDER_DIM) / longest : baseDpr;
       const pixelWidth = Math.max(1, Math.round(width * ratio));
@@ -1109,7 +1111,7 @@ const GhostFibers = ({
 
     const onPointerDown = (event: PointerEvent) => {
       const s = settingsRef.current;
-      if (!s.mouseInteraction || !s.pulseOnClick || event.button !== 0 || reduce) return;
+      if (!s.mouseInteraction || !s.pulseOnClick || (event.pointerType === 'mouse' && event.button !== 0) || reduce) return;
       if (
         event.target instanceof Element &&
         event.target.closest('a, button, input, textarea, select, label, [role="button"]')

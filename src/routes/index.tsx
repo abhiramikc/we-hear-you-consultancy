@@ -206,7 +206,7 @@ function Index() {
               proximity={80}
               smoothing={0.3}
               grain={0}
-              ambient={false}
+              ambient={true}
               flare
               className="p-6"
             >
@@ -273,7 +273,9 @@ function Index() {
               ))}
             </ul>
           </div>
-          <HalftoneReveal></HalftoneReveal>
+          <div className="relative aspect-4/3 w-full min-h-[300px] sm:min-h-[380px] md:aspect-square md:min-h-[440px] rounded-2xl overflow-hidden border border-border/50 bg-card/40 shadow-xl">
+            <HalftoneReveal wander={true} />
+          </div>
         </div>
       </Section>
 
@@ -317,7 +319,7 @@ function TeamCard({ role, n }: { role: string; n: number }) {
       proximity={80}
       smoothing={0.3}
       grain={0}
-      ambient={false}
+      ambient={true}
       flare
       className="p-6"
     >

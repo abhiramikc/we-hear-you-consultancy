@@ -441,7 +441,7 @@ const HalftoneReveal = ({
   softness = 0.6,
   linger = 1.2,
   reverse = false,
-  wander = false,
+  wander = true,
   clickBurst = true,
   intro = true,
   className = '',
@@ -540,7 +540,9 @@ const HalftoneReveal = ({
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     gl.bindVertexArray(null);
 
-    const floatMask = !!gl.getExtension('EXT_color_buffer_float');
+    const floatBuffer = !!gl.getExtension('EXT_color_buffer_float');
+    const floatLinear = !!gl.getExtension('OES_texture_float_linear');
+    const floatMask = floatBuffer && floatLinear;
     const imageTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, imageTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
@@ -791,6 +793,9 @@ const HalftoneReveal = ({
       state.introStart = performance.now();
       wake();
     };
+    image.onerror = (e) => {
+      console.warn('HalftoneReveal failed to load image src:', src, e);
+    };
     image.src = src;
 
     const locatePointer = (event: PointerEvent) => {
@@ -812,10 +817,30 @@ const HalftoneReveal = ({
       wake();
     };
     const onDown = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') {
+        try {
+          container.setPointerCapture(event.pointerId);
+        } catch {
+          // ignore
+        }
+      }
       onMove(event);
       if (!settingsRef.current.clickBurst || (event.pointerType === 'mouse' && event.button !== 0)) return;
       bursts.push({ x: pointer.x, y: pointer.y, start: performance.now() });
       if (bursts.length > MAX_BURSTS) bursts.shift();
+    };
+    const onUp = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') {
+        try {
+          if (container.hasPointerCapture(event.pointerId)) {
+            container.releasePointerCapture(event.pointerId);
+          }
+        } catch {
+          // ignore
+        }
+        pointer.inside = false;
+        wake();
+      }
     };
     const onVisibility = () => {
       last = 0;
@@ -825,8 +850,10 @@ const HalftoneReveal = ({
     container.addEventListener('pointermove', onMove, { passive: true });
     container.addEventListener('pointerenter', onMove, { passive: true });
     container.addEventListener('pointerdown', onDown, { passive: true });
+    container.addEventListener('pointerup', onUp, { passive: true });
     container.addEventListener('pointerleave', onLeave, { passive: true });
     container.addEventListener('pointercancel', onLeave, { passive: true });
+    container.addEventListener('lostpointercapture', onLeave, { passive: true });
     document.addEventListener('visibilitychange', onVisibility);
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(container);
@@ -852,13 +879,16 @@ const HalftoneReveal = ({
       cancelAnimationFrame(raf);
       wakeRef.current = null;
       image.onload = null;
+      image.onerror = null;
       resizeObserver.disconnect();
       intersection.disconnect();
       container.removeEventListener('pointermove', onMove);
       container.removeEventListener('pointerenter', onMove);
       container.removeEventListener('pointerdown', onDown);
+      container.removeEventListener('pointerup', onUp);
       container.removeEventListener('pointerleave', onLeave);
       container.removeEventListener('pointercancel', onLeave);
+      container.removeEventListener('lostpointercapture', onLeave);
       document.removeEventListener('visibilitychange', onVisibility);
       masks.forEach(destroyMask);
       gl.deleteTexture(imageTexture);
