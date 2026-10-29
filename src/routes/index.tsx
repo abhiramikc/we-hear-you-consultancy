@@ -329,7 +329,7 @@ function TeamCard({ role, n }: { role: string; n: number }) {
       <p className="mt-2 text-xs text-muted-foreground">[Specializations]</p>
       {open && <p className="mt-3 text-sm text-muted-foreground">[Short professional introduction]</p>}
       <div className="mt-4 flex items-center justify-between">
-        <button onClick={() => setOpen(!open)} className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground" aria-expanded={open}>
+        <button suppressHydrationWarning onClick={() => setOpen(!open)} className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground" aria-expanded={open}>
           {open ? "Less" : "More"} <ChevronDown className={`h-3 w-3 transition ${open ? "rotate-180" : ""}`} />
         </button>
         <a href="#" aria-label="LinkedIn" className="text-muted-foreground hover:text-accent"><Linkedin className="h-4 w-4" /></a>
@@ -338,21 +338,110 @@ function TeamCard({ role, n }: { role: string; n: number }) {
   );
 }
 
+function FormField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-2 block text-muted-foreground">{label}</span>
+      {children}
+      {error && <span className="mt-1 block text-xs text-destructive">{error}</span>}
+    </label>
+  );
+}
+
 function ContactForm() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<Record<string, string>>({});
-  const submit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const d = Object.fromEntries(new FormData(e.currentTarget)) as { name?: string; email?: string; service?: string; description?: string; website?: string };
-    if (d.website) return; // honeypot
-    const x: Record<string, string> = {};
-    if (!d.name?.trim()) x["name"] = "Please enter your name";
-    if (!/^\S+@\S+\.\S+$/.test(d.email ?? "")) x["email"] = "Please enter a valid email";
-    if (!d.service) x["service"] = "Please choose a service";
-    if ((d.description ?? "").trim().length < 10) x["description"] = "Please tell us a bit more";
-    setErr(x);
-    if (!Object.keys(x).length) setSent(true);
+
+  const [formData, setFormData] = useState({
+    fullName: "",
+    businessName: "",
+    email: "",
+    phone: "",
+    serviceRequired: "",
+    estimatedBudget: "",
+    projectDescription: "",
+    preferredContactMethod: "EMAIL" as "EMAIL" | "PHONE",
+  });
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (err[name]) {
+      setErr((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const x: Record<string, string> = {};
+    if (!formData.fullName.trim()) x["fullName"] = "Please enter your name";
+    if (!/^\S+@\S+\.\S+$/.test(formData.email.trim())) x["email"] = "Please enter a valid email";
+    if (!formData.phone.trim()) x["phone"] = "Please enter your phone number";
+    if (!formData.serviceRequired) x["serviceRequired"] = "Please choose a service";
+    if (formData.projectDescription.trim().length < 10) x["projectDescription"] = "Please tell us a bit more (at least 10 characters)";
+
+    setErr(x);
+    if (Object.keys(x).length > 0) return;
+
+    setLoading(true);
+    try {
+      const payload = {
+        fullName: formData.fullName.trim(),
+        businessName: formData.businessName.trim() || "N/A",
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        serviceRequired: formData.serviceRequired,
+        estimatedBudget: formData.estimatedBudget || "Not sure yet",
+        projectDescription: formData.projectDescription.trim(),
+        preferredContactMethod: formData.preferredContactMethod,
+      };
+
+      const res = await fetch("http://localhost:8080/contactus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setSent(true);
+      } else {
+        const errorData = await res.json().catch(() => null);
+        console.error("Backend error:", errorData);
+        setErr({ form: "Failed to submit. Please try again." });
+      }
+    } catch (networkError) {
+      console.error("Network error:", networkError);
+      setErr({ form: "Could not connect to the backend server. Please ensure http://localhost:8080 is running." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) {
+    return <div className="card-surface min-h-[520px] p-8" />;
+  }
+
   if (sent) return (
     <div className="card-surface p-10 text-center">
       <Check className="mx-auto h-10 w-10 text-accent" />
@@ -360,33 +449,124 @@ function ContactForm() {
       <p className="mt-2 text-muted-foreground">We've received your request and will be in touch soon.</p>
     </div>
   );
-  const F = ({ name, label, children }: { name: string; label: string; children: React.ReactNode }) => (
-    <label className="block text-sm">
-      <span className="mb-2 block text-muted-foreground">{label}</span>{children}
-      {err[name] && <span className="mt-1 block text-xs text-destructive">{err[name]}</span>}
-    </label>
-  );
+
   return (
     <form onSubmit={submit} noValidate className="card-surface grid gap-5 p-8 md:grid-cols-2">
-      <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
-      <F name="name" label="Full name *"><input name="name" className="field" /></F>
-      <F name="business" label="Business name"><input name="business" className="field" /></F>
-      <F name="email" label="Email address *"><input name="email" type="email" className="field" /></F>
-      <F name="phone" label="Phone number"><input name="phone" type="tel" className="field" /></F>
-      <F name="service" label="Service required *">
-        <select name="service" defaultValue="" className="field"><option value="" disabled>Select…</option>{services.map(([, t]) => <option key={t}>{t}</option>)}</select>
-      </F>
-      <F name="budget" label="Estimated budget">
-        <select name="budget" defaultValue="" className="field"><option value="">Not sure yet</option><option>Under $1,000</option><option>$1,000 – $5,000</option><option>$5,000 – $15,000</option><option>$15,000+</option></select>
-      </F>
-      <div className="md:col-span-2"><F name="description" label="Project description *"><textarea name="description" rows={5} className="field" /></F></div>
+      <FormField label="Full name *" error={err.fullName}>
+        <input
+          name="fullName"
+          value={formData.fullName}
+          onChange={handleChange}
+          className="field"
+          placeholder="Jane Doe"
+        />
+      </FormField>
+
+      <FormField label="Business name" error={err.businessName}>
+        <input
+          name="businessName"
+          value={formData.businessName}
+          onChange={handleChange}
+          className="field"
+          placeholder="Acme Inc (or individual)"
+        />
+      </FormField>
+
+      <FormField label="Email address *" error={err.email}>
+        <input
+          name="email"
+          type="email"
+          value={formData.email}
+          onChange={handleChange}
+          className="field"
+          placeholder="jane@example.com"
+        />
+      </FormField>
+
+      <FormField label="Phone number *" error={err.phone}>
+        <input
+          name="phone"
+          type="tel"
+          value={formData.phone}
+          onChange={handleChange}
+          className="field"
+          placeholder="+1 (555) 000-0000"
+        />
+      </FormField>
+
+      <FormField label="Service required *" error={err.serviceRequired}>
+        <select
+          name="serviceRequired"
+          value={formData.serviceRequired}
+          onChange={handleChange}
+          className="field"
+        >
+          <option value="" disabled>Select…</option>
+          {services.map(([, t]) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </FormField>
+
+      <FormField label="Estimated budget" error={err.estimatedBudget}>
+        <select
+          name="estimatedBudget"
+          value={formData.estimatedBudget}
+          onChange={handleChange}
+          className="field"
+        >
+          <option value="">Not sure yet</option>
+          <option>Under $1,000</option>
+          <option>$1,000 – $5,000</option>
+          <option>$5,000 – $15,000</option>
+          <option>$15,000+</option>
+        </select>
+      </FormField>
+
+      <div className="md:col-span-2">
+        <FormField label="Project description *" error={err.projectDescription}>
+          <textarea
+            name="projectDescription"
+            rows={5}
+            value={formData.projectDescription}
+            onChange={handleChange}
+            className="field"
+            placeholder="Tell us about your project, goals, or timeline..."
+          />
+        </FormField>
+      </div>
+
       <fieldset className="text-sm md:col-span-2">
         <legend className="mb-2 text-muted-foreground">Preferred contact method</legend>
-        <div className="flex gap-6">{["Email", "Phone"].map((m) => <label key={m} className="flex items-center gap-2"><input type="radio" name="contact" value={m} defaultChecked={m === "Email"} className="accent-primary" />{m}</label>)}</div>
+        <div className="flex gap-6">
+          {(["EMAIL", "PHONE"] as const).map((method) => (
+            <label key={method} className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="preferredContactMethod"
+                value={method}
+                checked={formData.preferredContactMethod === method}
+                onChange={() => setFormData((prev) => ({ ...prev, preferredContactMethod: method }))}
+                className="accent-primary"
+              />
+              {method === "EMAIL" ? "Email" : "Phone"}
+            </label>
+          ))}
+        </div>
       </fieldset>
+
       <div className="flex flex-col gap-4 md:col-span-2 md:flex-row md:items-center md:justify-between">
-        <p className="text-xs text-muted-foreground">We only use your details to respond to your enquiry.</p>
-        <button className="rounded-full bg-gradient-brand px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90">Request My Free Consultation</button>
+        <div>
+          <p className="text-xs text-muted-foreground">We only use your details to respond to your enquiry.</p>
+          {err.form && <p className="mt-1 text-xs text-destructive">{err.form}</p>}
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-full bg-gradient-brand px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? "Sending..." : "Request My Free Consultation"}
+        </button>
       </div>
     </form>
   );
