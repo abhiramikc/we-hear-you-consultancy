@@ -417,7 +417,7 @@ function ContactForm() {
         preferredContactMethod: formData.preferredContactMethod,
       };
 
-      const res = await fetch("http://localhost:8080/contactus", {
+      const res = await fetch("https://wehereyou.onrender.com/contactus", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -432,7 +432,7 @@ function ContactForm() {
       }
     } catch (networkError) {
       console.error("Network error:", networkError);
-      setErr({ form: "Could not connect to the backend server. Please ensure http://localhost:8080 is running." });
+      setErr({ form: "Could not connect to the backend server." });
     } finally {
       setLoading(false);
     }
@@ -565,7 +565,7 @@ function ContactForm() {
           disabled={loading}
           className="rounded-full bg-gradient-brand px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90 disabled:opacity-50"
         >
-          {loading ? "Sending..." : "Request My Free Consultation"}
+          {loading ? "Sending..." : "Request Free Consultation"}
         </button>
       </div>
     </form>
