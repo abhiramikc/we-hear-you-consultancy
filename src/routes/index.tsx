@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Check, Code2, Globe, ShoppingCart, Wrench, PenTool, Cloud, Plug, LifeBuoy, Menu, X, Store, Rocket, TrendingUp, User, Linkedin, ChevronDown, Sparkles } from "lucide-react";
 import hero from "@/assets/hero.jpg";
+import logo from "@/assets/logo.jpg";
 import CrystalizedBall, { type CrystalizedBallPreset } from "@/components/CrystalizedBall";
 import SpotlightCard from "@/components/SpotlightCard";
 import HalftoneReveal from "@/components/HalftoneReveal";
@@ -76,7 +77,16 @@ function Index() {
     <div className="min-h-screen overflow-x-hidden">
       <header className={`fixed inset-x-0 top-0 z-50 transition-colors ${scrolled ? "border-b border-border bg-background/85 backdrop-blur" : ""}`}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <a href="#top" className="font-display text-2xl">[Logo]</a>
+          <a href="#top" className="flex items-center gap-3 transition-opacity hover:opacity-90" aria-label="Home">
+            <img
+              src={logo}
+              alt="Logo"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-full object-cover ring-1 ring-border shadow-sm"
+              style={{ objectPosition: "center 47.5%" }}
+            />
+          </a>
           <nav className="hidden gap-8 text-xs uppercase tracking-[0.2em] text-muted-foreground md:flex">
             {nav.map(([l, id]) => <a key={id} href={`#${id}`} className="transition-colors hover:text-foreground">{l}</a>)}
           </nav>
@@ -286,7 +296,16 @@ function Index() {
       <footer className="border-t border-border">
         <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 md:grid-cols-4">
           <div className="md:col-span-2">
-            <p className="font-display text-2xl">[Logo]</p>
+            <a href="#top" className="inline-block transition-opacity hover:opacity-90" aria-label="Home">
+              <img
+                src={logo}
+                alt="Logo"
+                width={48}
+                height={48}
+                className="h-12 w-12 rounded-full object-cover ring-1 ring-border shadow-sm"
+                style={{ objectPosition: "center 47.5%" }}
+              />
+            </a>
             <p className="mt-3 font-display text-lg italic text-gradient">Practical Technology. Transparent Partnerships.</p>
             <p className="mt-3 max-w-sm text-sm text-muted-foreground">[Short company description]</p>
           </div>
